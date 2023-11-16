@@ -151,7 +151,6 @@ def main(opts=None):
         print(f"Selected model is a bag of {len(model.models)} models. "
               "You will see that many progress bars per track.")
 
-
     model.cpu()
     model.eval()
 
@@ -171,16 +170,16 @@ def main(opts=None):
         ext = "wav"
     
     kwargs = {
-    'samplerate': model.module.samplerate,
-    'bitrate': args.mp3_bitrate,
-    'preset': args.mp3_preset,
-    'clip': args.clip_mode,
-    'as_float': args.float32,
-    'bits_per_sample': 24 if args.int24 else 16,
+        'samplerate': model.module.samplerate,
+        'bitrate': args.mp3_bitrate,
+        'preset': args.mp3_preset,
+        'clip': args.clip_mode,
+        'as_float': args.float32,
+        'bits_per_sample': 24 if args.int24 else 16,
     }
 
-    if args.sample_rate is not None : 
-            kwargs['samplerate'] = args.sample_rate
+    if args.sample_rate is not None:
+        kwargs['samplerate'] = args.sample_rate
 
     dataset = DemucsDataSet(args.input_path, model.module.audio_channels, model.module.samplerate, args.out, args.name, ext, args.audiolength, drop_kb = 180)
     dataloader = DataLoader(dataset, batch_size = args.n_batch, num_workers = args.num_worker, shuffle = False, pin_memory = True)
@@ -225,28 +224,29 @@ def main(opts=None):
                     other_stem = librosa.resample(other_stem.detach().cpu().numpy(), orig_sr = model.module.samplerate, target_sr = args.sample_rate)
                 save_audio(th.Tensor(other_stem), str(stem), **kwargs)
             else:
+                # vocals时调整代码只输出分离的人声到output/input的最终文件夹目录下
                 sources = list(sources)
-                stem = out / subdir / args.filename.format(track=track.name.rsplit(".", 1)[0],
-                                                trackext=track.name.rsplit(".", 1)[-1],
-                                                stem=args.stem, ext=ext)
+                stem = out / f'{track.name.rsplit(".", 1)[0]}.{ext}'
                 stem.parent.mkdir(parents=True, exist_ok=True)
                 source = sources.pop(model.module.sources.index(args.stem))
-                if args.sample_rate is not None :
-                    source = librosa.resample(source.detach().cpu().numpy(), orig_sr = model.module.samplerate, target_sr = args.sample_rate)
+                if args.sample_rate is not None:
+                    source = librosa.resample(source.detach().cpu().numpy(), orig_sr=model.module.samplerate,
+                                              target_sr=args.sample_rate)
                 save_audio(th.Tensor(source), str(stem), **kwargs)
+                other_stem = None
                 # Warning : after poping the stem, selected stem is no longer in the list 'sources'
-                other_stem = th.zeros_like(sources[0])
-                for i in sources:
-                    other_stem += i
-                stem = out / subdir / args.filename.format(track=track.name.rsplit(".", 1)[0],
-                                                trackext=track.name.rsplit(".", 1)[-1],
-                                                stem="no_"+args.stem, ext=ext)
-                stem.parent.mkdir(parents=True, exist_ok=True)
-                if args.sample_rate is not None :
-                    other_stem = librosa.resample(other_stem.detach().cpu().numpy(), orig_sr = model.module.samplerate, target_sr = args.sample_rate)
-                save_audio(th.Tensor(other_stem), str(stem), **kwargs)
-        del b_sources, sources, other_stem, batch
-        gc.collect()
+                # other_stem = th.zeros_like(sources[0])
+                # for i in sources:
+                #     other_stem += i
+                # stem = out / subdir / args.filename.format(track=track.name.rsplit(".", 1)[0],
+                #                                 trackext=track.name.rsplit(".", 1)[-1],
+                #                                 stem="no_"+args.stem, ext=ext)
+                # stem.parent.mkdir(parents=True, exist_ok=True)
+                # if args.sample_rate is not None :
+                #     other_stem = librosa.resample(other_stem.detach().cpu().numpy(), orig_sr = model.module.samplerate, target_sr = args.sample_rate)
+                # save_audio(th.Tensor(other_stem), str(stem), **kwargs)
+            del b_sources, sources, other_stem, batch
+            gc.collect()
 
 if __name__ == "__main__":
     main()

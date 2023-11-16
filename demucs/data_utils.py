@@ -4,7 +4,12 @@ import sys
 import torchaudio as ta
 import subprocess
 import torch as th
+from torch.nn import functional as F
+
 from .audio import AudioFile, convert_audio
+
+
+
 
 def get_size(file_path, unit='kb'):
     file_size = os.path.getsize(file_path)
@@ -42,8 +47,11 @@ class DemucsDataSet:
             th.stack([wav,wav], dim=0)
         if wav.shape[-1] >= self.audiolength :
             wav = wav[:, : self.audiolength]
-        else :
-            wav = th.concat([wav,th.zeros(wav.shape[0],self.audiolength - wav.shape[1])], dim = -1)
+        else:
+            # Keep the original length
+            wav = F.pad(wav, (0, self.audiolength - wav.shape[1]))
+            # This keeps the length to 30S
+            # wav = th.concat([wav,th.zeros(wav.shape[0],self.audiolength - wav.shape[1])], dim = -1)
 
         is_zero = wav == 0
         wav = wav + is_zero * 1e-7 #adding eps to zeros so that can be devided by mean value at a line below.
